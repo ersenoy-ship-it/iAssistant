@@ -36,7 +36,7 @@ main_keyboard = ReplyKeyboardMarkup(
 # ========== ФУНКЦИИ ОБРАБОТКИ ==========
 def remove_background(image_bytes: bytes) -> bytes:
     input_image = Image.open(io.BytesIO(image_bytes))
-    output_image = remove(input_image)
+    output_image = output_image = remove(input_image, model_name="u2netp")
     output_bytes = io.BytesIO()
     output_image.save(output_bytes, format='PNG')
     return output_bytes.getvalue()
