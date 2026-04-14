@@ -43,7 +43,7 @@ def process_remove_bg(image_bytes: bytes) -> bytes:
         session = new_session("u2netp")
 
     input_image = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
-    input_image.thumbnail((1024, 1024))
+    input_image.thumbnail((512, 512)) # Уменьшите размер до 512, это сэкономит много RAM
 
     output_image = remove(input_image, session=session)
 
@@ -179,13 +179,25 @@ def webhook():
 
 # ================= ЗАПУСК =================
 
-if __name__ == "__main__":
-    import threading
+import threading
 
+# ... ваш остальной код (хендлеры, функции) ...
+
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
 
-    # 🔥 запускаем Telegram в фоне
-    threading.Thread(target=run_telegram, daemon=True).start()
+    # 1. Сначала подготавливаем Telegram бота, но НЕ запускаем run_polling() сразу
+    # Мы используем неблокирующий метод.
+    
+    def run_bot():
+        # Важно: run_polling блокирует поток, поэтому он должен быть в отдельном потоке
+        print("🤖 Бот запускается в фоне...")
+        app.run_polling(close_loop=False)
 
-    print("🚀 Starting Flask on port", port)
+    # Запускаем бота в отдельном потоке
+    threading.Thread(target=run_bot, daemon=True).start()
+
+    # 2. Flask ДОЛЖЕН работать в основном потоке на порту, который требует Render
+    print(f"🚀 Flask слушает порт {port}")
+    # Это "разморозит" деплой Render
     server.run(host="0.0.0.0", port=port)
