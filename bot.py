@@ -103,18 +103,24 @@ server = Flask(__name__)
 def health(): return "OK", 200
 
 def run_bot():
-    app = Application.builder().token(TOKEN).build()
+    # Используем переменную TOKEN, которая определена в начале файла
+    application = Application.builder().token(TOKEN).build()
+    
     conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex("^(🖼️ Удалить фон|🔄 Заменить фон)$"), button_handler)],
         states={
             WAITING_FOR_OBJECT: [MessageHandler(filters.PHOTO, handle_object)],
             WAITING_FOR_BACKGROUND: [MessageHandler(filters.PHOTO, handle_background)],
         },
-        fallbacks=[CommandHandler("cancel", start)],
+        fallbacks=[MessageHandler(filters.Regex("^❌ Отмена$"), cancel)],
     )
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(conv)
-    app.run_polling()
+    
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(conv)
+    
+    # КРИТИЧЕСКИЙ МОМЕНТ: close_loop=False и stop_signals=False 
+    # позволяют боту работать внутри threading
+    application.run_polling(close_loop=False, stop_signals=False)
 
 if __name__ == "__main__":
     # 1. Сначала запускаем бота в отдельном потоке
