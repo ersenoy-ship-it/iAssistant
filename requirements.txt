@@ -1,5 +1,5 @@
+flask
 python-telegram-bot
 rembg
+onnxruntime
 pillow
-flask
-onnxruntime-slim
