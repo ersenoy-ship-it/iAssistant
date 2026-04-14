@@ -131,10 +131,11 @@ async def handle_bg(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================= TELEGRAM =================
 
-app = Application.builder().token(TOKEN).build()
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 
-# 🔥 ВАЖНО: инициализация приложения
-asyncio.run(app.initialize())
+app = Application.builder().token(TOKEN).build()
+loop.run_until_complete(app.initialize())
 
 conv = ConversationHandler(
     entry_points=[MessageHandler(filters.Regex("^(🖼️ Удалить фон|🔄 Заменить фон)$"), button_handler)],
@@ -166,7 +167,7 @@ def webhook():
         data = request.get_json()
         update = Update.de_json(data, app.bot)
 
-        asyncio.run(app.process_update(update))
+        loop.create_task(app.process_update(update))
 
         return "ok"
     except Exception as e:
