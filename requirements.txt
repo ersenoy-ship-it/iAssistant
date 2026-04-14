@@ -1,5 +1,5 @@
 python-telegram-bot
-rembg[cpu]
-Pillow
-Flask
-gunicorn
+rembg
+pillow
+flask
+onnxruntime-slim
