@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 WAITING_FOR_OBJECT = 1
 WAITING_FOR_BACKGROUND = 2
 
-# ⚡ Загружаем модель ОДИН раз
-session = new_session("u2netp")
+# ⚠️ Ленивая загрузка модели (фикс таймаута)
+session = None
 
 # 🧠 Ограничение нагрузки
 semaphore = asyncio.Semaphore(2)
@@ -36,6 +36,12 @@ main_keyboard = ReplyKeyboardMarkup(
 # ================= ОБРАБОТКА =================
 
 def process_remove_bg(image_bytes: bytes) -> bytes:
+    global session
+
+    if session is None:
+        print("🔄 Loading model...")
+        session = new_session("u2netp")
+
     input_image = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
 
     # уменьшаем размер (важно для Render)
@@ -153,7 +159,6 @@ def health():
     return "OK", 200
 
 
-# 🔥 ВАЖНО: СИНХРОННЫЙ webhook
 @server.route("/webhook", methods=["POST"])
 def webhook():
     try:
@@ -171,5 +176,5 @@ def webhook():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    print("Starting Flask on port", port)
+    print("🚀 Starting Flask on port", port)
     server.run(host="0.0.0.0", port=port)
