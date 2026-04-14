@@ -131,13 +131,14 @@ async def handle_bg(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================= TELEGRAM =================
 
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
+def run_telegram():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
-app = Application.builder().token(TOKEN).build()
+    loop.run_until_complete(app.initialize())
+    loop.run_until_complete(app.start())
 
-loop.run_until_complete(app.initialize())
-loop.run_until_complete(app.start())
+    loop.run_forever()
 
 conv = ConversationHandler(
     entry_points=[MessageHandler(filters.Regex("^(🖼️ Удалить фон|🔄 Заменить фон)$"), button_handler)],
@@ -179,6 +180,12 @@ def webhook():
 # ================= ЗАПУСК =================
 
 if __name__ == "__main__":
+    import threading
+
     port = int(os.environ.get("PORT", 10000))
+
+    # 🔥 запускаем Telegram в фоне
+    threading.Thread(target=run_telegram, daemon=True).start()
+
     print("🚀 Starting Flask on port", port)
     server.run(host="0.0.0.0", port=port)
