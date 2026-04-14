@@ -117,6 +117,11 @@ def run_bot():
     app.run_polling()
 
 if __name__ == "__main__":
+    # 1. Сначала запускаем бота в отдельном потоке
     threading.Thread(target=run_bot, daemon=True).start()
+    
+    # 2. Основной поток отдаем Flask, чтобы Render сразу увидел открытый порт
     port = int(os.environ.get('PORT', 10000))
-    server.run(host='0.0.0.0', port=port)
+    print(f"Запускаю Flask на порту {port}...")
+    # debug=False обязателен для потоков!
+    app.run(host='0.0.0.0', port=port, debug=False)
