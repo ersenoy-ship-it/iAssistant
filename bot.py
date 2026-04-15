@@ -78,18 +78,44 @@ async def ocr_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return WAITING_FOR_OCR
 
 async def ocr_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    status_msg = await update.message.reply_text("🔍 Анализирую фото... подождите")
     try:
-        photo = await update.message.photo[-1].get_file()
-        api_url = f"https://api.ocr.space/parse/imageurl?apikey=K89996852888957&url={photo.file_path}&language=rus"
-        res = requests.get(api_url).json()
-        text = res["ParsedResults"][0]["ParsedText"] if res.get("ParsedResults") else "Текст не найден."
-        await update.message.reply_text(f"📖 **Текст:**\n`{text}`", parse_mode="Markdown", reply_markup=main_menu_keyboard())
-    except:
-        await update.message.reply_text("Ошибка OCR.")
-    return ConversationHandler.END
-
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Отменено.", reply_markup=main_menu_keyboard())
+        # 1. Скачиваем фото в память бота
+        photo_file = await update.message.photo[-1].get_file()
+        photo_bytes = await photo_file.download_as_bytearray()
+        
+        # 2. Подготавливаем файл для отправки в OCR.Space
+        files = {'file': ('image.jpg', io.BytesIO(photo_bytes), 'image/jpeg')}
+        payload = {
+            'apikey': 'K89996852888957', # Твой ключ
+            'language': 'rus',
+            'isOverlayRequired': False,
+            'scale': True, # Улучшает распознавание мелкого текста
+            'OCREngine': 2 # Вторая версия движка лучше работает с кириллицей
+        }
+        
+        # 3. Отправляем POST запрос с самим файлом
+        response = requests.post(
+            'https://api.ocr.space/parse/image',
+            files=files,
+            data=payload,
+            timeout=30
+        ).json()
+        
+        if response.get("ParsedResults"):
+            text = response["ParsedResults"][0]["ParsedText"]
+            if text.strip():
+                await status_msg.edit_text(f"📖 **Распознанный текст:**\n\n`{text}`", 
+                                         parse_mode="Markdown")
+            else:
+                await status_msg.edit_text("❌ Текст на фото не найден. Попробуйте сделать более четкий снимок.")
+        else:
+            await status_msg.edit_text("❌ Ошибка сервиса. Возможно, файл слишком большой.")
+            
+    except Exception as e:
+        logger.error(f"OCR Error: {e}")
+        await status_msg.edit_text("❌ Произошла ошибка при обработке фото.")
+    
     return ConversationHandler.END
 
 # ================= ЗАПУСК =================
