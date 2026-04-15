@@ -59,7 +59,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Кнопка Инфо с данными о боте"""
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👨‍💻 Связаться с разработчиком", url=https://t.me/ZYB_19)]
+        [InlineKeyboardButton("👨‍💻 Связаться с разработчиком", url=https://t.me/ZYB_19")]
     ])
     info_text = (
         " **iAssistant Support**\n\n"
