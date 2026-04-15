@@ -121,7 +121,10 @@ async def ocr_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # API лучше всего понимает их, если указать их так:
         payload['language'] = 'rus,ara,eng'
         
-        res = requests.post('https://api.ocr.space/parse/image', files=files, data=payload, timeout=25).json()
+        response = requests.post('https://api.ocr.space/parse/image', files=files, data=payload, timeout=25)
+        res = response.json()
+        
+        logger.info(f"Ответ от OCR API: {res}") # Это покажет реальную причину в логах Render
         
     
         
