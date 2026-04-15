@@ -100,47 +100,62 @@ async def ocr_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return WAITING_FOR_OCR
 
 async def ocr_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    status_msg = await update.message.reply_text("🔍 Считываю текст (RU/EN/AR)...")
+    status_msg = await update.message.reply_text("🔍 Анализирую фото... (RU/EN/AR)")
     try:
+        # 1. Получаем файл
         photo_file = await update.message.photo[-1].get_file()
-        photo_bytes = await photo_file.download_as_bytearray()
+        img_bytes = await photo_file.download_as_bytearray()
         
-        files = {'file': ('img.jpg', io.BytesIO(photo_bytes), 'image/jpeg')}
+        # 2. Сжимаем фото перед отправкой (чтобы точно влезть в лимиты API)
+        img = Image.open(io.BytesIO(img_bytes))
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
         
-        # ОБНОВЛЕННЫЙ ПАРАМЕТР (Максимально стабильный)
+        compressed_bio = io.BytesIO()
+        img.save(compressed_bio, format="JPEG", quality=80) # Сжатие до 80%
+        compressed_bio.seek(0)
+        
+        # 3. Настройки запроса
         payload = {
-            'apikey': 'K89996852888957', 
-            'language': 'rus',  # Начнем с русского как основного
-            'isOverlayRequired': False,
-            'base64Image': '',
-            'OCREngine': 1,     # Engine 1 лучше для арабского и смешанных текстов
-            'scale': True       # Улучшает распознавание мелкого текста
+            'apikey': 'K89996852888957',
+            'language': 'ara,rus,eng',
+            'OCREngine': 1,
+            'scale': True,
         }
         
-        # Хитрость: если мы хотим арабский + русский, 
-        # API лучше всего понимает их, если указать их так:
-        payload['language'] = 'rus,ara,eng'
+        files = {'file': ('img.jpg', compressed_bio, 'image/jpeg')}
         
-        response = requests.post('https://api.ocr.space/parse/image', files=files, data=payload, timeout=25)
+        # 4. Запрос с увеличенным ожиданием
+        response = requests.post(
+            'https://api.ocr.space/parse/image', 
+            files=files, 
+            data=payload, 
+            timeout=60
+        )
+        
         res = response.json()
         
-        logger.info(f"Ответ от OCR API: {res}") # Это покажет реальную причину в логах Render
-        
-    
-        
-        if res.get("ParsedResults"):
-            text = res["ParsedResults"][0]["ParsedText"]
-            if text.strip():
-                await status_msg.edit_text(f"📖 **Распознанный текст:**\n\n`{text}`", parse_mode="Markdown")
+        # 5. Проверка результата
+        if res.get("OCRExitCode") == 1:
+            results = res.get("ParsedResults", [])
+            if results:
+                text = results[0].get("ParsedText", "").strip()
+                if text:
+                    await status_msg.edit_text(f"📖 **Распознанный текст:**\n\n`{text}`", parse_mode="Markdown")
+                else:
+                    await status_msg.edit_text("❌ Текст не найден. Попробуйте другое фото.")
             else:
-                await status_msg.edit_text("❌ Текст не найден.")
+                await status_msg.edit_text("❌ Ошибка: Результаты не получены.")
         else:
-            await status_msg.edit_text("❌ Ошибка сервиса распознавания.")
-    except Exception as e:
-        logger.error(f"OCR Error: {e}")
-        await status_msg.edit_text("❌ Произошла ошибка. Проверьте интернет или размер фото.")
-    return ConversationHandler.END
+            # Выводим конкретную ошибку от API
+            err = res.get("ErrorMessage", ["Неизвестная ошибка"])[0]
+            await status_msg.edit_text(f"❌ Ошибка API: {err}")
 
+    except Exception as e:
+        logger.error(f"OCR CRITICAL: {e}")
+        await status_msg.edit_text("❌ Ошибка связи с сервером. Попробуйте еще раз через минуту.")
+        
+    return ConversationHandler.END
 # ================= СЕРВЕР И ЗАПУСК =================
 
 server = Flask(__name__)
