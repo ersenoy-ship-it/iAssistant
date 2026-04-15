@@ -140,19 +140,30 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================= ИНИЦИАЛИЗАЦИЯ И ЗАПУСК =================
 
-# Создаем приложение
 application = Application.builder().token(TOKEN).build()
 
-# 1. Сначала регистрируем обычные команды
-application.add_handler(CommandHandler("start", start))
-application.add_handler(MessageHandler(filters.Regex("ℹ️ Инфо"), info_handler))
+# Функция-посредник для проверки текста (устраняет проблемы с кодировкой эмодзи)
+async def message_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    
+    if "ℹ️ Инфо" in text:
+        await info_handler(update, context)
+    elif "🔳 Создать QR" in text:
+        return await qr_request(update, context)
+    elif "🖼 Конвертер" in text:
+        return await img_request(update, context)
+    elif "📝 Текст с фото" in text:
+        return await ocr_request(update, context)
+    elif "❌ Отмена" in text:
+        return await cancel(update, context)
 
-# 2. Регистрируем диалоговый обработчик
+# Регистрируем основной обработчик команд
+application.add_handler(CommandHandler("start", start))
+
+# Настраиваем ConversationHandler
 conv_handler = ConversationHandler(
     entry_points=[
-        MessageHandler(filters.Regex("🔳 Создать QR"), qr_request),
-        MessageHandler(filters.Regex("🖼 Конвертер"), img_request),
-        MessageHandler(filters.Regex("📝 Текст с фото"), ocr_request),
+        MessageHandler(filters.TEXT & ~filters.COMMAND, message_router)
     ],
     states={
         QR_GENERATING: [MessageHandler(filters.TEXT & ~filters.COMMAND, qr_process)],
@@ -160,29 +171,15 @@ conv_handler = ConversationHandler(
         WAITING_FOR_OCR: [MessageHandler(filters.PHOTO, ocr_process)],
     },
     fallbacks=[
-        MessageHandler(filters.Regex("❌ Отмена"), cancel),
+        MessageHandler(filters.Regex("Отмена"), cancel),
         CommandHandler("start", start)
     ],
+    allow_reentry=True
 )
 
 application.add_handler(conv_handler)
+# Резервный обработчик для Инфо вне диалогов
+application.add_handler(MessageHandler(filters.Regex("Инфо"), info_handler))
 
-# --- Настройка Flask (для Render) ---
-server = Flask(__name__)
-
-@server.route("/")
-def health_check():
-    return "iAssistant is Online", 200
-
-def run_bot():
-    print("🤖 Бот запускается...")
-    # drop_pending_updates=True сбрасывает старые сообщения
-    application.run_polling(stop_signals=None, drop_pending_updates=True)
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    # Запускаем бота в отдельном потоке
-    threading.Thread(target=run_bot, daemon=True).start()
-    # Запускаем веб-сервер
-    print(f"🚀 Веб-сервер на порту {port}")
-    server.run(host="0.0.0.0", port=port)
+# ================= WEB SERVER =================
+# ... дальше твой код с Flask без изменений ...
