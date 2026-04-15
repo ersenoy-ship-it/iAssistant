@@ -9,7 +9,7 @@ from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 
 # --- КОНФИГУРАЦИЯ ---
-TOKEN = "ТВОЙ_ТЕЛЕГРАМ_ТОКЕН" # Вставь свой токен!
+TOKEN = "8661460383:AAELNnjY9BEGvX_87ldmUHAi6ZiwnXPsQGs" # Вставь свой токен!
 OCR_API_KEY = "K89996852888957"
 
 # Состояния (States)
