@@ -1,3 +1,4 @@
+import asyncio
 import os
 import io
 import logging
@@ -118,8 +119,27 @@ server = Flask(__name__)
 def h(): return "OK", 200
 
 def run_bot():
-    app.run_polling(drop_pending_updates=True)
+    """Функция для запуска бота в отдельном потоке с созданием Event Loop"""
+    try:
+        # Создаем новый цикл событий специально для этого потока
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        logger.info("🤖 iAssistant starting...")
+        
+        # Запускаем бота
+        # Метод run_polling сам внутри себя управляет циклом, если он установлен
+        app.run_polling(drop_pending_updates=True)
+    except Exception as e:
+        logger.error(f"Критическая ошибка в потоке бота: {e}")
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    
+    # Запускаем бота в фоне
+    logger.info("Инициализация потока бота...")
     threading.Thread(target=run_bot, daemon=True).start()
-    server.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+
+    # Запускаем Flask (основной поток)
+    logger.info(f"Запуск Flask на порту {port}...")
+    server.run(host="0.0.0.0", port=port)
