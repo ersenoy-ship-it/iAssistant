@@ -17,6 +17,7 @@ DEV_URL = "https://t.me/ZYB_19"
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Состояния диалога
 QR_GENERATING, IMG_CONVERTING, WAITING_FOR_OCR = range(1, 4)
 
 def main_menu_keyboard():
@@ -26,7 +27,15 @@ def main_menu_keyboard():
         [KeyboardButton("❌ Отмена")]
     ], resize_keyboard=True)
 
-# ================= ФУНКЦИИ =================
+# ================= ФУНКЦИИ-ОБРАБОТЧИКИ =================
+
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Сброс состояния разговора"""
+    await update.message.reply_text(
+        "Действие отменено. Возвращаюсь в главное меню.",
+        reply_markup=main_menu_keyboard()
+    )
+    return ConversationHandler.END
 
 def generate_qr(text):
     qr = qrcode.QRCode(box_size=10, border=2)
@@ -80,21 +89,18 @@ async def ocr_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ocr_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status_msg = await update.message.reply_text("🔍 Анализирую фото... подождите")
     try:
-        # 1. Скачиваем фото в память бота
         photo_file = await update.message.photo[-1].get_file()
         photo_bytes = await photo_file.download_as_bytearray()
         
-        # 2. Подготавливаем файл для отправки в OCR.Space
         files = {'file': ('image.jpg', io.BytesIO(photo_bytes), 'image/jpeg')}
         payload = {
-            'apikey': 'K89996852888957', # Твой ключ
+            'apikey': 'K89996852888957', 
             'language': 'rus',
             'isOverlayRequired': False,
-            'scale': True, # Улучшает распознавание мелкого текста
-            'OCREngine': 2 # Вторая версия движка лучше работает с кириллицей
+            'scale': True,
+            'OCREngine': 2 
         }
         
-        # 3. Отправляем POST запрос с самим файлом
         response = requests.post(
             'https://api.ocr.space/parse/image',
             files=files,
@@ -105,8 +111,7 @@ async def ocr_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if response.get("ParsedResults"):
             text = response["ParsedResults"][0]["ParsedText"]
             if text.strip():
-                await status_msg.edit_text(f"📖 **Распознанный текст:**\n\n`{text}`", 
-                                         parse_mode="Markdown")
+                await status_msg.edit_text(f"📖 **Распознанный текст:**\n\n`{text}`", parse_mode="Markdown")
             else:
                 await status_msg.edit_text("❌ Текст на фото не найден. Попробуйте сделать более четкий снимок.")
         else:
@@ -122,6 +127,7 @@ async def ocr_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 app = Application.builder().token(TOKEN).build()
 
+# Добавляем обработчики
 app.add_handler(CommandHandler("start", start))
 app.add_handler(MessageHandler(filters.Text(["ℹ️ Инфо", "Инфо"]), info_handler))
 
@@ -136,44 +142,33 @@ conv = ConversationHandler(
         IMG_CONVERTING: [MessageHandler(filters.PHOTO, img_process)],
         WAITING_FOR_OCR: [MessageHandler(filters.PHOTO, ocr_process)],
     },
-    fallbacks=[MessageHandler(filters.Text(["❌ Отмена", "Отмена"]), cancel)]
+    fallbacks=[MessageHandler(filters.Text(["❌ Отмена", "Отмена"]), cancel), CommandHandler("cancel", cancel)]
 )
 app.add_handler(conv)
 
+# Flask для поддержки жизни на хостингах
 server = Flask(__name__)
 @server.route("/")
 def h(): return "OK", 200
 
 def run_bot():
-    """Ультимативный запуск бота через asyncio.run"""
     try:
-        logger.info("🤖 Подготовка к запуску бота...")
+        logger.info("🤖 Запуск бота...")
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         
-        # Для версии 20.x+ часто лучше использовать такой подход:
-        async def start_polling():
-            await app.initialize()
-            await app.start()
-            await app.updater.start_polling(drop_pending_updates=True)
-            logger.info("🤖 Бот запущен и слушает сообщения!")
-            # Держим цикл живым
-            while True:
-                await asyncio.sleep(3600)
-
-        asyncio.run(start_polling())
+        # Запуск polling
+        app.run_polling(drop_pending_updates=True)
     except Exception as e:
         logger.error(f"❌ Ошибка в потоке бота: {e}")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     
-    # Запускаем бота в отдельном потоке
+    # Запускаем бота в фоне
     bot_thread = threading.Thread(target=run_bot, daemon=True)
     bot_thread.start()
 
-    # Запускаем сервер
-    logger.info(f"🚀 Запуск Flask на порту {port}")
-    server.run(host="0.0.0.0", port=port)
-
-    # Запускаем Flask (основной поток)
-    logger.info(f"Запуск Flask на порту {port}...")
+    # Запускаем Flask в основном потоке
+    logger.info(f"🚀 Запуск Flask сервера на порту {port}")
     server.run(host="0.0.0.0", port=port)
