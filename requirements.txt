@@ -1,6 +1,4 @@
+python-telegram-bot
 flask
-python-telegram-bot==22.7
-rembg
-onnxruntime
-pillow
-gunicorn
+Pillow
+qrcode
