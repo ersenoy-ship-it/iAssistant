@@ -1,5 +1,5 @@
-python-telegram-bot==20.8
-flask
-Pillow
+python-telegram-bot[job-queue]==21.0.1
 qrcode
+pillow
 requests
+flask
