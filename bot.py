@@ -59,7 +59,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Кнопка Инфо с данными о боте"""
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👨‍💻 Связаться с разработчиком", url=DEV_URL)]
+        [InlineKeyboardButton("👨‍💻 Связаться с разработчиком", url=https://t.me/ZYB_19)]
     ])
     info_text = (
         " **iAssistant Support**\n\n"
@@ -113,7 +113,7 @@ async def ocr_process(update: Update, context: ContextTypes.DEFAULT_TYPE):
         photo = await update.message.photo[-1].get_file()
         img_url = photo.file_path
         # Используем внешний API, чтобы не нагружать RAM сервера
-        api_url = f"https://api.ocr.space/parse/imageurl?apikey=helloworld&url={img_url}&language=rus"
+        api_url = f"https://api.ocr.space/parse/imageurl?apikey=K89996852888957&url={img_url}&language=rus"
         
         response = requests.get(api_url).json()
         
